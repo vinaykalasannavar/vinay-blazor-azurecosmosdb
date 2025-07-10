@@ -1,0 +1,285 @@
+﻿@page "/SalesOrders"
+@using System.Diagnostics.Eventing.Reader
+@using System.Text
+@using vinay_blazor_azurecosmosdb_core.Sales
+@using vinay_blazor_azurecosmosdb_services.Interfaces;
+@inject IOrderService OrderService
+@rendermode InteractiveServer
+
+<PageTitle>
+    Azure Cosmos DB Sales page
+</PageTitle>
+
+<p>Hi, welcome.</p>
+
+@* <p>It's just a simple app that shows you how to use Azure CosmosDB.</p> *@
+<p>What it does:</p>
+<ul>
+    <li>Generate Sales Orders for a specific customer (Use the form below).</li>
+    <li>View the details of those orders</li>
+    <li>Delete individual order lines or entire orders</li>
+</ul>
+
+@* <p>Access the code <a href="https://github.com/vinaykalasannavar/vinay-blazor-azurecosmosdb">here</a></p> *@
+
+@if (@ConsoleText != "")
+{
+    <pre class="bg-light text-dark fw-light font-monospace mt-5 p-2" style="max-height: 200px; overflow-y: auto;">  
+        @ConsoleText  
+    </pre>
+}
+
+<div>
+
+    <div style="border: 2px solid #4A90E2; border-radius: 10px; padding: 20px; margin-bottom: 20px; background: #f8fafd; box-shadow: 0 2px 8px rgba(74,144,226,0.08);">
+        <label for="_customerName">Customer Name:</label>
+        <input @bind="_customerName" />
+
+        <label for="_noOfOrders" style="margin-left: 20px;">Number of Orders:</label>
+        <input @bind="_noOfOrders" type="number" min="0" max="15" />
+
+        <button type="button" @onclick="GenerateQueryDataAsync" style="margin-left: 20px;">Generate Orders</button>
+    </div>
+
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #444;
+            color: #fff;
+        }
+
+        tbody tr:nth-child(odd) {
+            background-color: #555;
+            color: #fff;
+        }
+
+        tbody tr:hover {
+            background-color: #666;
+            color: #fff;
+        }
+
+        .nested-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .nested-table th, .nested-table td {
+                border: 1px solid #ddd;
+                padding: 6px;
+                text-align: left;
+            }
+
+            .nested-table th {
+                background-color: #222;
+                color: #fff;
+                font-weight: bold;
+            }
+    </style>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Customer</th>
+                <th>Order Date</th>
+                <th>Total Amount</th>
+                <th>Order Lines</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_allOrders != null)
+            {
+                @foreach (var order in _allOrders)
+                {
+                    <tr>
+                        <td>@order.id</td>
+                        <td>@order.customer</td>
+                        <td>@order.orderDate</td>
+                        <td>@order.totalAmount</td>
+                        <td>
+                            <table class="nested-table">
+                                <thead>
+                                    <tr>
+                                        <th>Id</th>
+                                        <th>Product Id</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var orderLine in order.orderLines)
+                                    {
+                                        <tr>
+                                            <td>@orderLine.id</td>
+                                            <td>@orderLine.productId</td>
+                                            <td>@orderLine.quantity</td>
+                                            <td>@orderLine.price</td>
+                                            <td>
+                                                <button @onclick="() => DeleteOrderLineAsync(order.id, orderLine.id)" title="Delete Order Line" style="color: red; font-weight: bold; border: none; background: transparent; cursor: pointer;">&#10005;</button>
+                                            </td>
+                                        </tr>
+                                    }
+                        </tbody>
+                    </table>
+
+                    @code {
+                    }
+                </td>
+                <td>
+                    <button @onclick="() => EditOrder(order.id)">Edit</button>
+                    <button @onclick="() => DeleteOrder(order.id, order.customer)">Delete</button>
+                </td>
+            </tr>
+                        }
+                        }
+        </tbody>
+    </table>
+
+    @code {
+        private async Task EditOrder(string orderId)
+        {
+            // TODO: Add logic to edit the order
+            await WriteToConsoleAync($"Editing order with ID: {orderId}");
+            await WriteToConsoleAync($"Please come back later for this functionality, sorry!");
+        }
+    }
+
+</div>
+
+@code {
+    private StringBuilder _console = new();
+
+    string? _customerName;
+    int _noOfOrders;
+    private List<Order>? _allOrders;
+
+    private string ConsoleText
+    {
+        get => _console.ToString();
+    }
+
+    private async Task DeleteOrderLineAsync(string orderId, string orderLineId)
+    {
+        var order = _allOrders?.FirstOrDefault(o => o.id == orderId);
+        if (order == null)
+        {
+            await WriteToConsoleAync($"Order with ID {orderId} not found.");
+            return;
+        }
+
+        var orderLine = order.orderLines.FirstOrDefault(ol => ol.id == orderLineId);
+        if (orderLine == null)
+        {
+            await WriteToConsoleAync($"Order line with ID {orderLineId} not found in order {orderId}.");
+            return;
+        }
+
+        order.orderLines.Remove(orderLine);
+        await WriteToConsoleAync($"Deleting order line with ID: {orderLineId} from order {orderId}.");
+        // Optionally update totalAmount if needed
+        order = order with { totalAmount = order.orderLines.Sum(ol => ol.price * ol.quantity) };
+
+        bool success = await OrderService.UpdateOrder(order);
+        await WriteToConsoleAync($"Order line ({orderLineId}) deleted from order ({orderId}). Update status: {success}");
+
+        if (!success)
+        {
+            // Optionally, re-fetch orders if update failed
+            await FetchAllOrders();
+        }
+        else
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchAllOrders();
+    }
+
+    private async Task GenerateQueryDataAsync()
+    {
+        await ClearConsoleAsync();
+
+        if (!string.IsNullOrWhiteSpace(_customerName) && _noOfOrders != 0)
+        {
+            await WriteToConsoleAync("Current Status:\tStarting order generation...");
+
+            await OrderService.GenerateOrders(writeOutputAync: WriteToConsoleAync, customerName: _customerName, noOfOrders: _noOfOrders);
+
+            await WriteToConsoleAync("Current Status:\tStopping order generation...");
+
+            await FetchAllOrders();
+        }
+        else
+        {
+            StringBuilder errorBuilder = new();
+            errorBuilder.AppendLine("Error(s):");
+            errorBuilder.AppendLine("---------");
+
+            if (string.IsNullOrWhiteSpace(_customerName))
+            {
+                errorBuilder.AppendLine("Customer name cannot be empty.");
+            }
+            if (_noOfOrders <= 0)
+            {
+                errorBuilder.AppendLine("Number of orders must be greater than zero.");
+            }
+
+            await WriteToConsoleAync(errorBuilder.ToString());
+        }
+    }
+
+    private async Task FetchAllOrders()
+    {
+        _allOrders = await OrderService.FetchAllOrders();
+    }
+
+    private async Task DeleteOrder(string id, string customerName)
+    {
+        // Logic to delete the order
+        await WriteToConsoleAync($"Deleting order with ID: {id}, Customer Name: {customerName}");
+
+        bool success = await OrderService.DeleteOrder(id, customerName);
+
+        if (success)
+        {
+            Order? order = _allOrders?.Find(o => o.id == id && o.customer == customerName);
+            if (order != null)
+                _allOrders?.Remove(order);
+        }
+
+        await WriteToConsoleAync($"Status of deleting Order ID: ({id}), Customer Name = ({customerName}) is ({success})");
+    }
+
+    private async Task WriteToConsoleAync(string message)
+    {
+        _console.AppendLine(message);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ClearConsoleAsync()
+    {
+        _console.Clear();
+        await InvokeAsync(StateHasChanged);
+    }
+}
