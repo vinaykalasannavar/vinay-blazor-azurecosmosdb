@@ -25,8 +25,8 @@
 @if (@ConsoleText != "")
 {
     <pre class="bg-light text-dark fw-light font-monospace mt-5 p-2" style="max-height: 200px; overflow-y: auto;">  
-        @ConsoleText  
-    </pre>
+                @ConsoleText  
+            </pre>
 }
 
 <div>
@@ -134,10 +134,58 @@
                                             <td>@orderLine.quantity</td>
                                             <td>@orderLine.price</td>
                                             <td>
-                                                <button @onclick="() => DeleteOrderLineAsync(order.id, orderLine.id)" title="Delete Order Line" style="color: red; font-weight: bold; border: none; background: transparent; cursor: pointer;">&#10005;</button>
-                                            </td>
-                                        </tr>
+                                                <button @onclick="() => ConfirmDeleteOrderLine(order.id, order.customer, orderLine.id)" title="Delete Order Line" style="color: red; font-weight: bold; border: none; background: transparent; cursor: pointer;">&#10005;</button>
+
+                                                @* Confirmation dialog markup *@
+                                                @if (_showDeleteOrderLineDialog)
+                                                {
+                                                    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 1000;">
+                                                        <div style="background: #fff; color: #222; padding: 24px; border-radius: 8px; max-width: 400px; margin: 15vh auto; box-shadow: 0 2px 16px rgba(0,0,0,0.2);">
+                                                            <h5><strong>Confirm Delete</strong></h5>
+                                                            <p>Are you sure you want to delete this order line?</p>
+                                                            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                                                                <button @onclick="DeleteOrderLineConfirmed" class="btn btn-danger">Delete</button>
+                                                                <button @onclick="CancelDeleteOrderLine" class="btn btn-secondary">Cancel</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+
+                                    @code {
+                                        private bool _showDeleteOrderLineDialog = false;
+                                        private string? _pendingDeleteOrderId;
+                                        private string? _pendingDeleteOrderLineId;
+                                        private string? _pendingCustomer;
+
+                                        private void ConfirmDeleteOrderLine(string orderId, string customer, string orderLineId)
+                                        {
+                                            _pendingDeleteOrderId = orderId;
+                                            _pendingCustomer = customer;
+                                            _pendingDeleteOrderLineId = orderLineId;
+                                            _showDeleteOrderLineDialog = true;
+                                        }
+
+                                        private async Task DeleteOrderLineConfirmed()
+                                        {
+                                            if (!string.IsNullOrEmpty(_pendingDeleteOrderId) && !string.IsNullOrEmpty(_pendingDeleteOrderLineId))
+                                            {
+                                                await DeleteOrderLineAsync(_pendingDeleteOrderId, _pendingCustomer, _pendingDeleteOrderLineId);
+                                            }
+                                            _showDeleteOrderLineDialog = false;
+                                            _pendingDeleteOrderId = null;
+                                            _pendingDeleteOrderLineId = null;
+                                        }
+
+                                        private void CancelDeleteOrderLine()
+                                        {
+                                            _showDeleteOrderLineDialog = false;
+                                            _pendingDeleteOrderId = null;
+                                            _pendingDeleteOrderLineId = null;
+                                        }
                                     }
+                                </td>
+                            </tr>
+                                                        }
                         </tbody>
                     </table>
 
@@ -177,9 +225,9 @@
         get => _console.ToString();
     }
 
-    private async Task DeleteOrderLineAsync(string orderId, string orderLineId)
+    private async Task DeleteOrderLineAsync(string orderId, string customer, string orderLineId)
     {
-        var order = _allOrders?.FirstOrDefault(o => o.id == orderId);
+        var order = _allOrders?.FirstOrDefault(o => o.id == orderId && o.customer == customer);
         if (order == null)
         {
             await WriteToConsoleAync($"Order with ID {orderId} not found.");
