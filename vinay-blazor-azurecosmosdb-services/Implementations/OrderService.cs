@@ -164,8 +164,10 @@ namespace vinay_blazor_azurecosmosdb_services.Implementations
             var deleteStatus = false;
             Container container = await GetSalesContainer();
 
-            var query = new QueryDefinition(query: "SELECT * FROM orders p WHERE p.id = @id")
-                .WithParameter("@id", order.id);
+            var query = new QueryDefinition(query: "SELECT * FROM orders p WHERE p.id = @id and p.customer = @customerName") // 
+                    .WithParameter("@id", order.id)
+                    .WithParameter("@customerName", order.customer)
+                ;
 
             using FeedIterator<Order> feed = container.GetItemQueryIterator<Order>(queryDefinition: query);
 
