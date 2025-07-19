@@ -150,69 +150,102 @@
                                                         </div>
                                                     </div>
                                                 }
-
-                                    @code {
-                                        private bool _showDeleteOrderLineDialog = false;
-                                        private Order? _pendingDeleteOrder;
-                                        private OrderLine? _pendingDeleteOrderLine;
-                                        
-
-                                        private void ConfirmDeleteOrderLine(Order order, OrderLine orderLine)
-                                        {
-                                            _pendingDeleteOrder = order;
-                                            _pendingDeleteOrderLine = orderLine;
-                                            _showDeleteOrderLineDialog = true;
-                                        }
-
-                                        private async Task DeleteOrderLineConfirmed()
-                                        {
-                                            if (_pendingDeleteOrder != null && _pendingDeleteOrderLine != null)
-                                            {
-                                                await DeleteOrderLineAsync(_pendingDeleteOrder, _pendingDeleteOrderLine);
-                                            }
-                                            _showDeleteOrderLineDialog = false;
-                                            _pendingDeleteOrder = null;
-                                            _pendingDeleteOrderLine = null;
-                                        }
-
-                                        private void CancelDeleteOrderLine()
-                                        {
-                                            _showDeleteOrderLineDialog = false;
-                                            _pendingDeleteOrder = null;
-                                            _pendingDeleteOrderLine = null;
-                                        }
-                                    }
                                 </td>
                             </tr>
-                                                        }
+                                    }
                         </tbody>
                     </table>
-
-                    @code {
-                    }
                 </td>
                 <td>
                     <button @onclick="() => EditOrder(order.id)">Edit</button>
-                    <button @onclick="() => DeleteOrder(order.id, order.customer)">Delete</button>
+                    <button @onclick="() => ConfirmDeleteOrder(order)">Delete</button>
+                    @* Confirmation dialog markup *@
+                    @if (_showDeleteOrderDialog)
+                    {
+                        <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 1000;">
+                            <div style="background: #fff; color: #222; padding: 24px; border-radius: 8px; max-width: 400px; margin: 15vh auto; box-shadow: 0 2px 16px rgba(0,0,0,0.2);">
+                                <h5><strong>Confirm Delete</strong></h5>
+                                <p>Are you sure you want to delete order (@_pendingDeleteOrder?.id)?</p>
+                                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                                    <button @onclick="DeleteOrderConfirmed" class="btn btn-danger">Delete</button>
+                                    <button @onclick="CancelDeleteOrder" class="btn btn-secondary">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
                 </td>
             </tr>
-                        }
-                        }
+                }
+            }
         </tbody>
     </table>
 
-    @code {
-        private async Task EditOrder(string orderId)
-        {
-            // TODO: Add logic to edit the order
-            await WriteToConsoleAync($"Pretending to edit order ID: {orderId}");
-            await WriteToConsoleAync($"Ah, please come back later for this functionality - it hasn't been built, sorry!");
-        }
-    }
+    @code {}
 
 </div>
 
 @code {
+
+    private bool _showDeleteOrderLineDialog = false;
+    private bool _showDeleteOrderDialog = false;
+    private Order? _pendingDeleteOrder;
+    private OrderLine? _pendingDeleteOrderLine;
+
+
+    private async Task EditOrder(string orderId)
+    {
+        // TODO: Add logic to edit the order
+        await WriteToConsoleAync($"Pretending to edit order ID: {orderId}");
+        await WriteToConsoleAync($"Ah, please come back later for this functionality - it hasn't been built, sorry!");
+    }    
+
+    private void ConfirmDeleteOrder(Order order)
+    {
+        _pendingDeleteOrder = order;
+        _showDeleteOrderDialog = true;
+    }
+
+    private void ConfirmDeleteOrderLine(Order order, OrderLine orderLine)
+    {
+        _pendingDeleteOrder = order;
+        _pendingDeleteOrderLine = orderLine;
+        _showDeleteOrderLineDialog = true;
+    }
+
+    private async Task DeleteOrderConfirmed()
+    {
+        if (_pendingDeleteOrder != null)
+        {
+            await DeleteOrderAsync(_pendingDeleteOrder);
+        }
+        _showDeleteOrderDialog = false;
+        _pendingDeleteOrder = null;
+    }
+
+    private void CancelDeleteOrder()
+    {
+        _showDeleteOrderDialog = false;
+        _pendingDeleteOrder = null;
+    }
+
+    private async Task DeleteOrderLineConfirmed()
+    {
+        if (_pendingDeleteOrder != null && _pendingDeleteOrderLine != null)
+        {
+            await DeleteOrderLineAsync(_pendingDeleteOrder, _pendingDeleteOrderLine);
+        }
+        _showDeleteOrderLineDialog = false;
+        _pendingDeleteOrder = null;
+        _pendingDeleteOrderLine = null;
+    }
+
+    private void CancelDeleteOrderLine()
+    {
+        _showDeleteOrderLineDialog = false;
+        _pendingDeleteOrder = null;
+        _pendingDeleteOrderLine = null;
+    }
+
     private StringBuilder _console = new();
 
     string? _customerName;
@@ -315,21 +348,21 @@
         _allOrders = await OrderService.FetchAllOrders();
     }
 
-    private async Task DeleteOrder(string id, string customerName)
+    private async Task DeleteOrderAsync(Order? order)
     {
         // Logic to delete the order
-        await WriteToConsoleAync($"Deleting order with ID: {id}, Customer Name: {customerName}");
+        await WriteToConsoleAync($"Deleting order with ID: {order.id}, Customer Name: {order.customer}");
 
-        bool success = await OrderService.DeleteOrder(id, customerName);
+        bool success = await OrderService.DeleteOrder(order);
 
         if (success)
         {
-            Order? order = _allOrders?.Find(o => o.id == id && o.customer == customerName);
-            if (order != null)
-                _allOrders?.Remove(order);
+            Order? orderToRemoveFomList = _allOrders?.Find(o => o.id == order.id && o.customer == order.customer);
+            if (orderToRemoveFomList!= null)
+                _allOrders?.Remove(orderToRemoveFomList);
         }
 
-        await WriteToConsoleAync($"Status of deleting Order ID: ({id}), Customer Name = ({customerName}) is ({success})");
+        await WriteToConsoleAync($"Status of deleting Order ID: ({order.id}), Customer Name = ({order.customer}) is ({success})");
     }
 
     private async Task WriteToConsoleAync(string message)

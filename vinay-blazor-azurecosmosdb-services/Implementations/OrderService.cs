@@ -49,15 +49,15 @@ namespace vinay_blazor_azurecosmosdb_services.Implementations
             return items;
         }
 
-        public async Task<bool> DeleteOrder(string id, string customerName)
+        public async Task<bool> DeleteOrder(Order? order)
         {
             var deleteStatus = false;
             Container container = await GetSalesContainer();
             //customerName = customerName.Replace("\'", "\\\'");
 
             var query = new QueryDefinition(query: "SELECT * FROM orders p WHERE p.id = @id and p.customer = @customerName") // 
-                .WithParameter("@id", id)
-                .WithParameter("@customerName", customerName)
+                .WithParameter("@id", order.id)
+                .WithParameter("@customerName", order.customer)
                 ;
 
             using FeedIterator<Order> feed = container.GetItemQueryIterator<Order>(queryDefinition: query);
